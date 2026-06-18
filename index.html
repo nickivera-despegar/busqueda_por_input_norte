@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Caja de búsqueda · Explorador de flujo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="stage">
+
+  <!-- ============ PRESENTATION NOTES (left of phone, results only) ============ -->
+  <aside class="notes" id="notes" aria-hidden="true">
+    <div class="notes-eyebrow" id="notesEyebrow">Opción 1</div>
+    <h2 class="notes-title" id="notesTitle"></h2>
+    <div class="note-block note-pro">
+      <span class="note-tag">Pro</span>
+      <p id="notesPro"></p>
+    </div>
+    <div class="note-block note-con">
+      <span class="note-tag">Con</span>
+      <p id="notesCon"></p>
+    </div>
+  </aside>
+
+  <!-- ============ PHONE ============ -->
+  <div class="phone" id="phone">
+    <div class="phone-viewport" id="viewport">
+
+      <!-- HOME (#1) — pinned shrinking header (Airbnb-style) + scrolling canvas -->
+      <section class="screen" id="screen-home">
+        <header class="home-header" id="homeHeader">
+          <div class="hh-status">
+            <span>10:20</span><span class="sb-status-icons">▰▰ ◆ ▮</span>
+          </div>
+          <button class="hh-search" data-action="open-search">
+            <svg class="sb-loupe" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+            <span class="hh-ph">¿Qué estás buscando?</span>
+          </button>
+        </header>
+        <div class="home-scroll" id="homeScroll">
+          <div id="homeBody"></div>
+        </div>
+        <div class="navmount" data-nav></div>
+      </section>
+
+      <!-- SOFIA chat (opened from the nav) -->
+      <section class="screen" id="screen-sofia">
+        <div class="sofia-top">
+          <button class="sofia-back" data-action="sofia-back" aria-label="Volver">
+            <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>
+          </button>
+          <div class="sofia-id">
+            <span class="sofia-mark"><svg viewBox="0 0 24 24"><path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8z"/></svg></span>
+            <div><b>SOFIA</b><small>Tu asistente de viajes</small></div>
+          </div>
+        </div>
+        <div class="sofia-thread" id="sofiaThread"></div>
+        <div class="sofia-suggest" id="sofiaSuggest"></div>
+        <div class="sofia-compose">
+          <input class="sofia-input" id="sofiaInput" placeholder="Escribile a SOFIA…" />
+          <button class="sofia-send" id="sofiaSend" aria-label="Enviar">
+            <svg viewBox="0 0 24 24"><path d="M4 12l16-7-7 16-2-7z"/></svg>
+          </button>
+        </div>
+      </section>
+
+      <!-- VOOS box (#2 new / #3 returning) — live HTML -->
+      <section class="screen" id="screen-voos"></section>
+
+      <!-- SEARCH (#4 / #5) — live HTML -->
+      <section class="screen" id="screen-search">
+        <div class="sb-statusbar">
+          <span>10:20</span>
+          <span class="sb-status-icons">▰▰ ◆ ▮</span>
+        </div>
+        <div class="sb-header">
+          <button class="sb-back" data-action="home" aria-label="Volver">
+            <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" /></svg>
+          </button>
+          <div class="sb-input">
+            <svg class="sb-loupe" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+            <span class="sb-text" id="sbText"></span><span class="sb-caret"></span>
+            <span class="sb-placeholder" id="sbPlaceholder">¿Qué estás buscando?</span>
+          </div>
+          <button class="sb-buscar" id="sbBuscar" disabled>Buscar</button>
+        </div>
+
+        <div class="sb-scroll" id="sbScroll">
+          <div class="sb-sofia-row">
+            <svg class="sb-sofia-spark" viewBox="0 0 24 24"><path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8z"/></svg>
+            <span id="sbSofiaLabel">Preguntale a SOFIA</span>
+          </div>
+          <div class="sb-cards" id="sbCards"></div>
+          <div class="sb-section-label" id="sbListLabel"></div>
+          <div class="sb-list" id="sbList"></div>
+        </div>
+
+        <!-- on-screen keyboard -->
+        <div class="kbd" id="kbd"></div>
+      </section>
+
+      <!-- RESULT (#6–#10) — live HTML -->
+      <section class="screen" id="screen-result"></section>
+
+    </div>
+  </div>
+
+  <!-- ============ CONTROL PANEL (bottom-right) ============ -->
+  <button class="panel-fab" id="panelFab" aria-label="Panel de control">
+    <svg viewBox="0 0 24 24"><path d="M12 15.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7z"/><path d="M19.4 13a7.5 7.5 0 000-2l2-1.5-2-3.4-2.3 1a7.5 7.5 0 00-1.7-1l-.3-2.5h-4l-.3 2.5a7.5 7.5 0 00-1.7 1l-2.3-1-2 3.4 2 1.5a7.5 7.5 0 000 2l-2 1.5 2 3.4 2.3-1a7.5 7.5 0 001.7 1l.3 2.5h4l.3-2.5a7.5 7.5 0 001.7-1l2.3 1 2-3.4z"/></svg>
+  </button>
+
+  <aside class="panel" id="panel">
+    <div class="panel-head">
+      <span>Panel de control</span>
+      <button class="panel-close" id="panelClose" aria-label="Cerrar">×</button>
+    </div>
+
+    <div class="panel-group">
+      <div class="panel-group-title">Tipo de usuario <em>(rama «Voos»)</em></div>
+      <div class="seg" data-seg="userType">
+        <button data-val="new" class="active">Nuevo</button>
+        <button data-val="returning">Recurrente</button>
+      </div>
+      <p class="panel-hint">Nuevo → «Cualquier destino». Recurrente → reusa su última búsqueda.</p>
+    </div>
+
+    <div class="panel-group">
+      <div class="panel-group-title">Resultado al elegir «Paris»</div>
+      <div class="radio-list" data-radio="resultOption">
+        <label class="radio active" data-val="1">
+          <span class="radio-dot"></span>
+          <span class="radio-body"><b>Opción 1 — Resultado inmediato</b><small>Cero fricción · va directo a un resultado</small></span>
+        </label>
+        <div class="subpicker" id="subpicker">
+          <button data-val="1a" class="active">1A · Search (resultados)</button>
+          <button data-val="1b-current">1B · Landing (actual)</button>
+          <button data-val="1b-new">1B · Landing (nueva)</button>
+        </div>
+        <label class="radio" data-val="2">
+          <span class="radio-dot"></span>
+          <span class="radio-body"><b>Opción 2 — Caja de búsqueda</b><small>Acompaña a articular el deseo</small></span>
+        </label>
+        <label class="radio" data-val="3">
+          <span class="radio-dot"></span>
+          <span class="radio-body"><b>Opción 3 — Landing multiproducto</b><small>Usuario indefinido (no existe hoy)</small></span>
+        </label>
+      </div>
+    </div>
+
+    <button class="panel-reset" id="panelReset">↺ Reiniciar al inicio</button>
+  </aside>
+
+</div>
+<script src="app.js"></script>
+</body>
+</html>
