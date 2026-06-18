@@ -225,11 +225,8 @@ function renderTypingList(){
   const matches = DESTINATIONS.filter(d => norm(d.city).includes(norm(query)) || norm(d.country).includes(norm(query)));
   const top = matches.slice(0, 4);
 
-  // 0) recognized natural-language intent (e.g. "Vuelos a Paris en verano")
-  let html = recognizeParisVerano(query) ? smartRowHTML() : '';
-
   // 1) up to 4 specific destinations + Cualquier destino  (always 5 max)
-  html += top.map(d => `
+  let html = top.map(d => `
     <button class="sb-row" data-dest="${d.hero ? 'paris' : ''}">
       ${IC.city}
       <span class="r-main"><span>${highlight(d.city, query)}, ${highlight(d.country, query)}</span></span>
@@ -279,12 +276,6 @@ function openSearch(){
 function recognizeParisVerano(q){
   const n = norm(q || '');
   return n.includes('paris') && (n.includes('veran') || /(junio|julio|agosto)/.test(n));
-}
-function smartRowHTML(){
-  return `<button class="sb-smart" data-action="paris-verano">
-    <span class="ss-mark"><svg viewBox="0 0 24 24"><path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8z"/></svg></span>
-    <span class="ss-body"><span class="ss-title">Vuelos a Paris en verano</span><span class="ss-sub">Abrir caja de búsqueda · Jun – Ago</span></span>
-    <span class="ss-arrow">${arrowIc()}</span></button>`;
 }
 function goParisVerano(){
   resetBoxFlow();
@@ -346,10 +337,11 @@ function buildKeyboard(){
 /* physical keyboard while on search screen */
 document.addEventListener('keydown', e => {
   if (state.screen !== 'search') return;
+  if (e.metaKey || e.ctrlKey || e.altKey) return;          // let browser shortcuts through
   if (e.key === 'Backspace'){ e.preventDefault(); setQuery(query.slice(0,-1)); }
-  else if (e.key === 'Enter'){ submitSearch(); }
+  else if (e.key === 'Enter'){ e.preventDefault(); submitSearch(); }
   else if (e.key === 'Escape'){ showScreen('home'); }
-  else if (e.key.length === 1){ setQuery(query + e.key); }
+  else if (e.key.length === 1){ e.preventDefault(); setQuery(query + e.key); }  // incl. Space — preventDefault so it types instead of scrolling / activating a focused button
 });
 
 /* ============================================================
