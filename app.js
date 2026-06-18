@@ -93,7 +93,7 @@ function syncResult(){
 function syncNotes(){
   const el = $('#notes');
   if (state.screen !== 'result'){ el.classList.remove('show'); el.setAttribute('aria-hidden','true'); return; }
-  const opt = resultOverride ? '1' : state.resultOption;
+  const opt = resultOverride ? (resultOverride.charAt(0) === '1' ? '1' : resultOverride) : state.resultOption;
   const n = NOTES[opt];
   $('#notesEyebrow').textContent = 'Opción ' + opt;
   $('#notesTitle').textContent   = n.title;
@@ -225,8 +225,11 @@ function renderTypingList(){
   const matches = DESTINATIONS.filter(d => norm(d.city).includes(norm(query)) || norm(d.country).includes(norm(query)));
   const top = matches.slice(0, 4);
 
+  // 0) recognized natural-language intent (e.g. "Vuelos a Paris en verano")
+  let html = recognizeParisVerano(query) ? smartRowHTML() : '';
+
   // 1) up to 4 specific destinations + Cualquier destino  (always 5 max)
-  let html = top.map(d => `
+  html += top.map(d => `
     <button class="sb-row" data-dest="${d.hero ? 'paris' : ''}">
       ${IC.city}
       <span class="r-main"><span>${highlight(d.city, query)}, ${highlight(d.country, query)}</span></span>
@@ -272,6 +275,30 @@ function openSearch(){
   showKbd(true);                      // keyboard visible on entry
 }
 
+/* natural-language: "Vuelos a Paris en verano" → caja de búsqueda (Jun–Ago) */
+function recognizeParisVerano(q){
+  const n = norm(q || '');
+  return n.includes('paris') && (n.includes('veran') || /(junio|julio|agosto)/.test(n));
+}
+function smartRowHTML(){
+  return `<button class="sb-smart" data-action="paris-verano">
+    <span class="ss-mark"><svg viewBox="0 0 24 24"><path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8z"/></svg></span>
+    <span class="ss-body"><span class="ss-title">Vuelos a Paris en verano</span><span class="ss-sub">Abrir caja de búsqueda · Jun – Ago</span></span>
+    <span class="ss-arrow">${arrowIc()}</span></button>`;
+}
+function goParisVerano(){
+  resetBoxFlow();
+  parisBox.mesLabel = 'Junio, Julio, Agosto';
+  resultOverride = '2';                 // Opción 2 — caja de búsqueda
+  showScreen('result');
+}
+/* submit from the search input (Buscar / Enter / keyboard go) */
+function submitSearch(){
+  if (!query) return;
+  if (recognizeParisVerano(query)) goParisVerano();
+  else { resetBoxFlow(); showScreen('result'); }
+}
+
 /* clicks inside the search list */
 function onListClick(e){
   const row = e.target.closest('.sb-row');
@@ -311,7 +338,7 @@ function buildKeyboard(){
     const k = b.dataset.k;
     if (k === undefined) return;            // shift / ?123 = decorative
     if (k === 'back')      setQuery(query.slice(0, -1));
-    else if (k === 'go')   { if (query) { resetBoxFlow(); showScreen('result'); } }
+    else if (k === 'go')   { submitSearch(); }
     else                   setQuery(query + (k === ' ' ? ' ' : k));
   });
 }
@@ -320,7 +347,7 @@ function buildKeyboard(){
 document.addEventListener('keydown', e => {
   if (state.screen !== 'search') return;
   if (e.key === 'Backspace'){ e.preventDefault(); setQuery(query.slice(0,-1)); }
-  else if (e.key === 'Enter'){ if (query) { resetBoxFlow(); showScreen('result'); } }
+  else if (e.key === 'Enter'){ submitSearch(); }
   else if (e.key === 'Escape'){ showScreen('home'); }
   else if (e.key.length === 1){ setQuery(query + e.key); }
 });
@@ -391,6 +418,7 @@ function initRouting(){
       case 'vbox-toggle':   parisBox.cheap = !parisBox.cheap; if (parisBox.cheap) parisBox.dateChosen = false; syncResult(); break;
       case 'vbox-pickdate': parisBox.dateChosen = true; syncResult(); break;
       case 'vbox-buscar':   resultOverride = parisBox.dateChosen ? '1:1a' : '1:1b-current'; showScreen('result'); break;
+      case 'paris-verano':  goParisVerano(); break;
       case 'buscar-bounce': h.classList.remove('shake'); void h.offsetWidth; h.classList.add('shake'); break;
     }
   });
@@ -401,6 +429,7 @@ function initRouting(){
     if ($('#sbScroll').scrollTop > 16 && !$('#kbd').classList.contains('kbd-hidden')) showKbd(false);
   });
   $('.sb-input').addEventListener('click', () => showKbd(true));
+  $('#sbBuscar').addEventListener('click', () => { if (!$('#sbBuscar').disabled) submitSearch(); });
 
   // Airbnb-style: shrink the home search header on scroll
   const hs = $('#homeScroll');
@@ -579,8 +608,8 @@ function productTabs(active){
 
 /* Op.2 caja-de-búsqueda interactive state */
 let resultOverride = null;                 // set by Op.2 Buscar to jump to 1A / 1B
-let parisBox = { cheap:true, dateChosen:false };
-function resetBoxFlow(){ resultOverride = null; parisBox = { cheap:true, dateChosen:false }; }
+let parisBox = { cheap:true, dateChosen:false, mesLabel:'Todos los meses' };
+function resetBoxFlow(){ resultOverride = null; parisBox = { cheap:true, dateChosen:false, mesLabel:'Todos los meses' }; }
 
 function vboxHTML(variant){
   const isParis = variant === 'paris';
@@ -599,7 +628,7 @@ function vboxHTML(variant){
        <div class="vf-col"><div class="vf-kick">Vuelta</div><div class="vf-val">${vta}</div></div></div>`;
   const mesField =
     `<div class="vfield"><span class="vf-ic">${calIc()}</span>
-       <div class="vf-col"><div class="vf-kick">Mes</div><div class="vf-val">Todos los meses</div></div>
+       <div class="vf-col"><div class="vf-kick">Mes</div><div class="vf-val">${isParis ? parisBox.mesLabel : 'Todos los meses'}</div></div>
        <span class="vf-chev">${chevIc()}</span></div>`;
   let dateField;
   if (variant === 'returning')              dateField = twoCol('15 jul - 30 jul','24 jul');
