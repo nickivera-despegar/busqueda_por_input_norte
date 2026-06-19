@@ -106,26 +106,40 @@ function syncNotes(){
    LIVE SEARCH SCREEN
    ============================================================ */
 const DESTINATIONS = [
-  { city:'Paris',          country:'Francia',   hero:true },
-  { city:'Paracas',        country:'Perú' },
-  { city:'Paraty',         country:'Brasil' },
-  { city:'Asunción',       country:'Paraguay' },
-  { city:'Madrid',         country:'España' },
-  { city:'Barcelona',      country:'España' },
-  { city:'Río de Janeiro', country:'Brasil' },
-  { city:'São Paulo',      country:'Brasil' },
-  { city:'Recife',         country:'Brasil' },
-  { city:'Cancún',         country:'México' },
-  { city:'Roma',           country:'Italia' },
-  { city:'Lisboa',         country:'Portugal' },
-  { city:'Buenos Aires',   country:'Argentina' },
-  { city:'Miami',          country:'Estados Unidos' },
+  { city:'Paris',          country:'Francia',        code:'PAR', tag:'Arte, cafés y la Torre Eiffel' },
+  { city:'Paracas',        country:'Perú',           code:'PCS', tag:'Reserva natural frente al mar' },
+  { city:'Paraty',         country:'Brasil',         code:'PTY', tag:'Pueblo colonial junto al mar' },
+  { city:'Asunción',       country:'Paraguay',       code:'ASU', tag:'Capital a orillas del río' },
+  { city:'Parma',          country:'Italia',         code:'PMF', tag:'Cuna del queso y el jamón' },
+  { city:'Paramaribo',     country:'Surinam',        code:'PBM', tag:'Caribe y herencia colonial' },
+  { city:'Pärnu',          country:'Estonia',        code:'EPU', tag:'Playas y spas del Báltico' },
+  { city:'Paros',          country:'Grecia',         code:'PAS', tag:'Islas Cícladas y mar Egeo' },
+  { city:'Parnaíba',       country:'Brasil',         code:'PHB', tag:'Delta y dunas del nordeste' },
+  { city:'Pardubice',      country:'Chequia',        code:'PED', tag:'Castillo y pan de jengibre' },
+  { city:'Madrid',         country:'España',         code:'MAD', tag:'Movida, tapas y museos' },
+  { city:'Barcelona',      country:'España',         code:'BCN', tag:'Gaudí, playa y ramblas' },
+  { city:'Río de Janeiro', country:'Brasil',         code:'RIO', tag:'Playa, samba y Cristo Redentor' },
+  { city:'São Paulo',      country:'Brasil',         code:'SAO', tag:'Gastronomía y vida urbana' },
+  { city:'Recife',         country:'Brasil',         code:'REC', tag:'Arrecifes y cultura nordestina' },
+  { city:'Cancún',         country:'México',         code:'CUN', tag:'Caribe turquesa y resorts' },
+  { city:'Roma',           country:'Italia',         code:'ROM', tag:'Historia milenaria y pasta' },
+  { city:'Lisboa',         country:'Portugal',       code:'LIS', tag:'Fados, miradouros y tranvías' },
+  { city:'Buenos Aires',   country:'Argentina',      code:'BUE', tag:'Tango, bohemia y parrillas' },
+  { city:'Miami',          country:'Estados Unidos', code:'MIA', tag:'Playa, compras y vida nocturna' },
 ];
+let selectedDest = DESTINATIONS[0];                       // (e) drives the result screens
+function resolveDest(q){
+  const nq = norm(q || '');
+  return DESTINATIONS.find(x => norm(`${x.city}, ${x.country}`) === nq)
+      || DESTINATIONS.find(x => nq.includes(norm(x.city)))
+      || DESTINATIONS[0];
+}
+const destPhoto = d => ph(DESTINATIONS.indexOf(d));        // deterministic photo per city
 
 // SOFIA suggestion cards per state
 const SOFIA_EMPTY = [
   { h:'Itinerario para Bariloche', p:'4 días por la Patagonia' },
-  { h:'Escapadas de fin de semana', p:'Alojamientos cerca de ti' },
+  { h:'Escapadas de finde', p:'Alojamientos cerca de ti' },
 ];
 const SOFIA_TYPING = [
   { h:'Ofertas de vuelos a Europa', p:'Francia, España y más' },
@@ -159,17 +173,30 @@ const IC = {
   plane: '<svg class="ic" viewBox="0 0 24 24"><path d="M21 13.5l-8-2.2V5a1.5 1.5 0 00-3 0v6.3l-8 2.2V16l8-1.3V19l-2 1.3V22l3.5-1 3.5 1v-1.7L13 19v-4.3l8 1.3z"/></svg>',
 };
 
-function renderSearch(){
-  const sofiaLabel = query ? '¿Dudas? Preguntale a SOFIA' : 'Preguntale a SOFIA';
-  $('#sbSofiaLabel').textContent = sofiaLabel;
+const SPARK_SVG = '<svg viewBox="0 0 24 24"><path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8z"/></svg>';
+const ARROW_SVG = '<svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
+const sbCardHTML = (h, p) => `<div class="sb-card">
+  <div class="c-spark">${SPARK_SVG}</div><svg class="c-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+  <h4>${escapeHtml(h)}</h4><p>${escapeHtml(p)}</p></div>`;
+// (c) live "mirror" card: echoes the typed text, opens SOFIA with it
+const mirrorCardHTML = q => `<button class="sb-card mirror" data-action="sofia-prompt">
+  <div class="c-spark">${SPARK_SVG}</div><svg class="c-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+  <h4 class="mirror-q">${escapeHtml(q)}</h4><p>Preguntar a SOFIA</p></button>`;
 
+function renderSearch(){
+  // (b) once a specific destination is picked → "all about SOFIA": one tile grid of bubbles
+  const picked = query && DESTINATIONS.find(d => norm(`${d.city}, ${d.country}`) === norm(query));
+  if (picked){
+    $('#sbSofiaLabel').textContent = 'Armá tu viaje con SOFIA';
+    $('#sbCards').style.display = 'none';            // the horizontal bubble row is replaced by the grid
+    $('#sbList').innerHTML = sofiaGridHTML(picked.city);
+    return;
+  }
+  $('#sbCards').style.display = '';
+  $('#sbSofiaLabel').textContent = query ? '¿Dudas? Preguntale a SOFIA' : 'Preguntale a SOFIA';
   const cards = query ? SOFIA_TYPING : SOFIA_EMPTY;
-  $('#sbCards').innerHTML = cards.map(c => `
-    <div class="sb-card">
-      <div class="c-spark"><svg viewBox="0 0 24 24"><path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8z"/></svg></div>
-      <svg class="c-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-      <h4>${escapeHtml(c.h)}</h4><p>${escapeHtml(c.p)}</p>
-    </div>`).join('');
+  $('#sbCards').innerHTML =
+    (query ? mirrorCardHTML(query) : '') + cards.map(c => sbCardHTML(c.h, c.p)).join('');
 
   if (!query){ renderEmptyList(); return; }
   renderTypingList();
@@ -177,9 +204,9 @@ function renderSearch(){
 
 // returning user's last searches (consistent with the returning-user Voos prefill)
 const RECENTS = [
-  { ic:IC.plane, main:'Cancún, México',     sub:'15 jul · 30 jul' },
-  { ic:IC.bed,   main:'Rio de Janeiro',     sub:'10 sept · 15 sept' },
-  { ic:IC.bag,   main:'Buenos Aires',       sub:'2 nov · 9 nov' },
+  { ic:IC.plane, main:'Cancún, México',          sub:'15 jul · 30 jul' },
+  { ic:IC.bed,   main:'Río de Janeiro, Brasil',  sub:'10 sept · 15 sept' },
+  { ic:IC.bag,   main:'Buenos Aires, Argentina', sub:'2 nov · 9 nov' },
 ];
 
 function renderEmptyList(){
@@ -190,7 +217,7 @@ function renderEmptyList(){
   if (state.userType === 'returning'){
     html += '<div class="sb-subhead">Vistos recientemente</div>';
     html += '<div class="sb-recents">' + RECENTS.map(r => `
-      <button class="sb-recent" data-noop>
+      <button class="sb-recent" data-fill="${escapeHtml(r.main)}">
         <span class="rc-ic">${r.ic}</span>
         <span class="rc-main"><b>${r.main}</b><span class="r-sub">${r.sub}</span></span>
       </button>`).join('') + '</div>';
@@ -198,23 +225,13 @@ function renderEmptyList(){
 
   html += '<div class="sb-subhead">¿No sabés dónde ir?</div>';
   html += [
-    { ic:IC.globe, main:'Qualquer destino', badge:'Novo' },
-    { thumb:'🌆', main:'São Paulo, Brasil', sub:'Vibração urbana' },
-    { thumb:'🏖️', main:'Rio de Janeiro, Brasil', sub:'Energia carioca' },
-    { thumb:'⛪', main:'Recife, Pernambuco, Brasil', sub:'História viva' },
-    { thumb:'🌅', main:'Buenos Aires, Argentina', sub:'Tango y bohemia' },
-    { thumb:'🏝️', main:'Cancún, México', sub:'Caribe turquesa' },
-    { thumb:'⛪', main:'Salvador, Bahia', sub:'Axé y dendê' },
-    { thumb:'🏛️', main:'Madrid, España', sub:'Capital vibrante' },
-    { thumb:'🍷', main:'Santiago, Chile', sub:'Cordillera y viñedos' },
-    { thumb:'🌋', main:'Lima, Perú', sub:'Capital gastronómica' },
-    { thumb:'🏰', main:'Cartagena, Colombia', sub:'Caribe colonial' },
-    { thumb:'⛩️', main:'Florianópolis, Brasil', sub:'Ilha da magia' },
-  ].map(r => {
-    const lead = r.thumb ? `<span class="thumb">${r.thumb}</span>` : r.ic;
-    const sub  = r.sub ? `<span class="r-sub">${r.sub}</span>` : '';
-    const badge= r.badge ? `<span class="badge">${r.badge}</span>` : '';
-    return `<button class="sb-row" data-noop>${lead}<span class="r-main"><span>${r.main}${badge}</span>${sub}</span></button>`;
+    ['Río de Janeiro','🏖️'], ['São Paulo','🌆'], ['Buenos Aires','🌅'],
+    ['Cancún','🏝️'], ['Madrid','🏛️'], ['Barcelona','⛪'],
+    ['Lisboa','🚋'], ['Roma','🏟️'], ['Miami','🌴'],
+  ].map(([city, thumb]) => {
+    const d = DESTINATIONS.find(x => x.city === city); if (!d) return '';
+    const full = `${d.city}, ${d.country}`;
+    return `<button class="sb-row" data-fill="${escapeHtml(full)}"><span class="thumb">${thumb}</span><span class="r-main"><span>${escapeHtml(full)}</span><span class="r-sub">${escapeHtml(d.tag)}</span></span></button>`;
   }).join('');
 
   $('#sbList').innerHTML = html;
@@ -222,32 +239,36 @@ function renderEmptyList(){
 
 function renderTypingList(){
   $('#sbListLabel').textContent = '';
-  const matches = DESTINATIONS.filter(d => norm(d.city).includes(norm(query)) || norm(d.country).includes(norm(query)));
-  const top = matches.slice(0, 4);
-
-  // 1) up to 4 specific destinations + Cualquier destino  (always 5 max)
-  let html = top.map(d => `
-    <button class="sb-row" data-dest="${d.hero ? 'paris' : ''}">
+  // (a) only cities (no product rows), up to 10 — clicking one fills the input
+  const matches = DESTINATIONS
+    .filter(d => norm(d.city).includes(norm(query)) || norm(d.country).includes(norm(query)))
+    .slice(0, 10);
+  $('#sbList').innerHTML = matches.map(d => `
+    <button class="sb-row" data-fill="${escapeHtml(d.city + ', ' + d.country)}">
       ${IC.city}
       <span class="r-main"><span>${highlight(d.city, query)}, ${highlight(d.country, query)}</span></span>
     </button>`).join('');
+}
 
-  html += `<button class="sb-row" data-noop>${IC.globe}<span class="r-main"><span>Cualquier destino</span></span></button>`;
-
-  // 2) product + destination rows for each matched destination
-  const products = [
-    { label:'Hoteles en',  ic:IC.bed },
-    { label:'Paquetes a',  ic:IC.bag },
-    { label:'Vuelos a',    ic:IC.plane },
-  ];
-  top.forEach(d => {
-    products.forEach(pr => {
-      html += `<button class="sb-row" data-noop>${pr.ic}
-        <span class="r-main"><span>${pr.label} ${highlight(d.city, query)}, ${highlight(d.country, query)}</span></span></button>`;
-    });
-  });
-
-  $('#sbList').innerHTML = html;
+/* (b) "all about SOFIA" tile grid shown after a city is selected — 2-col masonry, all visible */
+function sofiaGridHTML(city){
+  const tile = ({ mirror, text, prompt, h }) => {
+    const body = mirror
+      ? `<span class="sg-q">${escapeHtml(query)}</span><span class="sg-kick">Preguntar a SOFIA</span>`
+      : `<span class="sg-txt">${escapeHtml(text)}</span>`;
+    const act = mirror ? 'data-action="sofia-prompt"'
+                       : `data-action="sofia-prompt-text" data-prompt="${escapeHtml(prompt)}"`;
+    return `<button class="sg-tile" ${act} style="min-height:${h}px"><span class="sg-spark">${SPARK_SVG}</span><span class="sg-body">${body}</span></button>`;
+  };
+  const tMirror = tile({ mirror:true, h:100 });
+  const tA = tile({ text:`¿Qué hacer en ${city}?`,                  prompt:`¿Qué hacer en ${city}?`,                       h:130 });
+  const tB = tile({ text:`Mejor época para viajar a ${city}`,        prompt:`¿Cuál es la mejor época para viajar a ${city}?`, h:92  });
+  const tC = tile({ text:`Armá un itinerario de 5 días en ${city}`,  prompt:`Armá un itinerario de 5 días en ${city}`,        h:140 });
+  const tD = tile({ text:`¿Cuánto sale viajar a ${city}?`,           prompt:`¿Cuánto sale un viaje a ${city}?`,              h:104 });
+  return `<div class="sgrid">
+    <div class="sgrid-col">${tMirror}${tB}${tD}</div>
+    <div class="sgrid-col">${tA}${tC}</div>
+  </div>`;
 }
 
 /* input handling */
@@ -258,6 +279,8 @@ function setQuery(q){
   $('#sbBuscar').classList.toggle('enabled', q.length > 0);
   $('#sbBuscar').disabled = q.length === 0;
   renderSearch();
+  // (a) keep the END of the text (and caret) visible as it grows past the input width
+  const f = $('#sbField'); if (f) f.scrollLeft = f.scrollWidth;
 }
 function resetSearchInput(){ query = ''; }
 
@@ -279,6 +302,7 @@ function recognizeParisVerano(q){
 }
 function goParisVerano(){
   resetBoxFlow();
+  selectedDest = DESTINATIONS[0];       // Paris
   parisBox.mesLabel = 'Junio, Julio, Agosto';
   resultOverride = '2';                 // Opción 2 — caja de búsqueda
   showScreen('result');
@@ -287,15 +311,16 @@ function goParisVerano(){
 function submitSearch(){
   if (!query) return;
   if (recognizeParisVerano(query)) goParisVerano();
-  else { resetBoxFlow(); showScreen('result'); }
+  else { resetBoxFlow(); selectedDest = resolveDest(query); showScreen('result'); }
 }
 
 /* clicks inside the search list */
 function onListClick(e){
-  const row = e.target.closest('.sb-row');
+  const row = e.target.closest('.sb-row, .sb-recent');
   if (!row) return;
-  if (row.dataset.dest === 'paris'){ resetBoxFlow(); showScreen('result'); return; }
-  // every other row is decorative — gentle shake to show it's a mock
+  // (e) clicking a destination/recent fills the input (then they can Buscar or tap to keep editing)
+  if (row.dataset.fill){ setQuery(row.dataset.fill); showKbd(false); $('#sbScroll').scrollTop = 0; return; }
+  // product rows etc. stay decorative — gentle shake to show it's a mock
   row.classList.remove('shake'); void row.offsetWidth; row.classList.add('shake');
 }
 
@@ -411,6 +436,8 @@ function initRouting(){
       case 'vbox-pickdate': parisBox.dateChosen = true; syncResult(); break;
       case 'vbox-buscar':   resultOverride = parisBox.dateChosen ? '1:1a' : '1:1b-current'; showScreen('result'); break;
       case 'paris-verano':  goParisVerano(); break;
+      case 'sofia-prompt':  openSofia(query); break;
+      case 'sofia-prompt-text': openSofia(h.dataset.prompt); break;
       case 'buscar-bounce': h.classList.remove('shake'); void h.offsetWidth; h.classList.add('shake'); break;
     }
   });
@@ -552,11 +579,12 @@ let sofiaReturn = 'home';
 const SOFIA_GREET = '¡Hola! Soy SOFIA, tu asistente de viajes. Contame qué tenés ganas de hacer y armamos tu viaje juntos. ✨';
 const SOFIA_SUGS = ['Armá mi viaje', 'Ofertas a Europa', 'Escapada de fin de semana', '¿Qué hacer en París?'];
 
-function openSofia(){
+function openSofia(prompt){
   sofiaReturn = state.screen === 'sofia' ? sofiaReturn : state.screen;
   $('#sofiaThread').innerHTML = `<div class="bubble sof">${SOFIA_GREET}</div>`;
   $('#sofiaSuggest').innerHTML = SOFIA_SUGS.map(s => `<button class="sofia-chip">${s}</button>`).join('');
   showScreen('sofia');
+  if (prompt && prompt.trim()) sofiaSend(prompt);   // open with the typed text as the first prompt
 }
 function sofiaSend(text){
   const t = (text || '').trim(); if (!t) return;
@@ -608,7 +636,7 @@ function vboxHTML(variant){
   const base = {
     new:       { dest:'Cualquier destino', cheap:true,  vuelta:null,    back:'home'   },
     returning: { dest:'Cancún, México',    cheap:false, vuelta:'24 jul', back:'home'   },
-    paris:     { dest:'Paris, Francia',    cheap:true,  vuelta:null,    back:'search' },
+    paris:     { dest:`${selectedDest.city}, ${selectedDest.country}`, cheap:true, vuelta:null, back:'search' },
   }[variant];
   const cheap = isParis ? parisBox.cheap : base.cheap;
 
@@ -671,7 +699,7 @@ function backIc(){return '<svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></s
 function pillHeader(sub, back){
   return `<div class="rhead">
     <button class="rh-back" data-action="${back}" aria-label="Volver">${backIc()}</button>
-    <div class="rh-pill"><b>BUE - PAR</b><span>${sub} · <em>👤</em> 1</span></div>
+    <div class="rh-pill"><b>BUE - ${selectedDest.code}</b><span>${sub} · <em>👤</em> 1</span></div>
     <button class="rh-share" aria-label="Compartir">${shareIc()}</button>
   </div>`;
 }
@@ -686,7 +714,7 @@ function focard(img, tag, loc, title, lines){
 const VOOS_LINES = `<div class="fo-from">Desde</div><div class="fo-price">U$ 1200</div><div class="fo-sub">Ida e volta</div>`;
 /* a row of 3 "Voos a Paris" cards, each a different photo */
 function voosRow(start){
-  return `<div class="hcar">${[0,1,2].map(k=>focard(ph(start+k),'Voos','De Buenos Aires','Paris',VOOS_LINES)).join('')}</div>`;
+  return `<div class="hcar">${[0,1,2].map(k=>focard(ph(start+k),'Voos','De Buenos Aires',selectedDest.city,VOOS_LINES)).join('')}</div>`;
 }
 /* month price bar chart (shared by 1B-nueva & multiproduct) */
 function monthChartHTML(){
@@ -696,23 +724,24 @@ function monthChartHTML(){
   return `<div class="hsec"><div class="hsec-head"><h3>¿Cuándo es más barato?</h3></div>
     <div class="mchart">${H.map((h,i)=>`<div class="mc-col"><i style="height:${h}%;background:${h===min?'#19c3a0':'#6d28d9'}"></i><span${h===min?' class="lo"':''}>${M[i]}</span></div>`).join('')}</div></div>`;
 }
-/* rotating SOFIA prompt card */
-const SOFIA_ROT = ['Buscar vuelos baratos para Paris','¿Qué puedo hacer en Paris?','Mejores lugares para visitar en Paris','Armar un itinerario de 5 días','¿Cuál es la mejor época para viajar?'];
-let sofiaRotTimer = null;
+/* rotating SOFIA prompt card (destination-aware) */
+let sofiaRotTimer = null, sofiaRotList = [];
 function sofiaRotCard(){
+  const c = selectedDest.city;
+  sofiaRotList = [`Buscar vuelos baratos para ${c}`, `¿Qué puedo hacer en ${c}?`, `Mejores lugares para visitar en ${c}`, 'Armar un itinerario de 5 días', `¿Cuál es la mejor época para ir a ${c}?`];
   return `<div class="hsec"><button class="sofia-rot" data-action="open-sofia">
     <span class="sr-mark">${ICN.spark}</span>
-    <span class="sr-body"><span class="sr-kick">Preguntale a SOFIA</span><span class="sr-text" id="sofiaRotText">${SOFIA_ROT[0]}</span></span>
+    <span class="sr-body"><span class="sr-kick">Preguntale a SOFIA</span><span class="sr-text" id="sofiaRotText">${escapeHtml(sofiaRotList[0])}</span></span>
     <span class="sr-arrow">${arrowIc()}</span></button></div>`;
 }
 function startSofiaRotator(){
   if (sofiaRotTimer){ clearInterval(sofiaRotTimer); sofiaRotTimer = null; }
-  const el = document.getElementById('sofiaRotText'); if (!el) return;
+  const el = document.getElementById('sofiaRotText'); if (!el || !sofiaRotList.length) return;
   let i = 0;
   sofiaRotTimer = setInterval(() => {
-    i = (i + 1) % SOFIA_ROT.length;
+    i = (i + 1) % sofiaRotList.length;
     el.style.opacity = '0';
-    setTimeout(() => { el.textContent = SOFIA_ROT[i]; el.style.opacity = '1'; }, 220);
+    setTimeout(() => { el.textContent = sofiaRotList[i]; el.style.opacity = '1'; }, 220);
   }, 2600);
 }
 
@@ -725,11 +754,12 @@ function flightListHTML(){
       <div class="lg"><b>${b}</b><span>${tb} <sup>+1</sup></span></div>
       <div class="lg dir"><a>Directo</a><span>15 h 10 m</span></div>
       <span class="bags">${bagIc3()}</span></div>`;
+  const dst = selectedDest.code;
   const card = `<div class="fcard">
     <span class="fc-chk">${xIc()}</span>
-    ${leg('EZE','17:05','MIA','07:15')}
+    ${leg('EZE','17:05',dst,'07:15')}
     <div class="fc-div"></div>
-    ${leg('MIA','20:15','EZE','12:15')}
+    ${leg(dst,'20:15','EZE','12:15')}
     <div class="fc-foot"><span>Final 2 personas <b class="i">i</b></span><b class="price">$ 1.200.000</b></div>
   </div>`;
   return `<div class="rwrap fl">
@@ -752,11 +782,12 @@ function tuneIc(){return '<svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h
 
 /* 1B-current — landing (actual) */
 function landingActualHTML(){
+  const D = selectedDest;
   const fcard = (air, color, days, price) => `<div class="lacard">
     <div class="la-air"><span class="air-dot" style="background:${color}"></span>${air}<span class="la-days">🧳 ${days}</span></div>
     <div class="la-legs">
-      <div><div class="la-leg">${VIC.plane}<b>IDA</b> EZE - CDG</div><div class="la-date">Lun. 8 jul. 2024</div><div class="la-time">7:30 · <a>Directo</a></div></div>
-      <div><div class="la-leg">${VIC.bag}<b>VUELTA</b> CDG - AEP</div><div class="la-date">Mar. 9 jul. 2024</div><div class="la-time">21:45 · 2 escalas</div></div>
+      <div><div class="la-leg">${VIC.plane}<b>IDA</b> EZE - ${D.code}</div><div class="la-date">Lun. 8 jul. 2024</div><div class="la-time">7:30 · <a>Directo</a></div></div>
+      <div><div class="la-leg">${VIC.bag}<b>VUELTA</b> ${D.code} - AEP</div><div class="la-date">Mar. 9 jul. 2024</div><div class="la-time">21:45 · 2 escalas</div></div>
     </div>
     <div class="la-foot"><div><div class="la-from">Por persona desde</div><div class="la-price">MXN$ <b>${price}</b></div></div><a class="la-next">Siguiente ${chevR()}</a></div>
   </div>`;
@@ -766,9 +797,9 @@ function landingActualHTML(){
       <div class="la-icons"><span class="lai on">🎧</span><span class="lai">💼</span><span class="lai">🅳</span><span class="lai pill">👤 ☰</span></div>
     </div>
     <div class="la-ptabs">${productTabs('vuelos')}</div>
-    <div class="la-hero" style="background-image:url('${ph(1)}')"><h2>Vuelos desde<br>Buenos Aires a Paris</h2></div>
-    <div class="la-bar"><div class="lab-row">${pinIc()} <b>París, Francia</b></div><div class="lab-row">${calIc()} Elegí una fecha <span class="lab-pax">👤 1</span></div><button class="lab-search">${loupeIc()}</button></div>
-    <h3 class="la-h3">Vuelos más baratos a París</h3>
+    <div class="la-hero" style="background-image:url('${destPhoto(D)}')"><h2>Vuelos desde<br>Buenos Aires a ${escapeHtml(D.city)}</h2></div>
+    <div class="la-bar"><div class="lab-row">${pinIc()} <b>${escapeHtml(D.city)}, ${escapeHtml(D.country)}</b></div><div class="lab-row">${calIc()} Elegí una fecha <span class="lab-pax">👤 1</span></div><button class="lab-search">${loupeIc()}</button></div>
+    <h3 class="la-h3">Vuelos más baratos a ${escapeHtml(D.city)}</h3>
     <div class="la-cards">
       ${fcard('LATAM Airlines','#e6224a','2 días','9.000')}
       ${fcard('Aerolíneas','#1565c0','4 días','9.700')}
@@ -787,7 +818,7 @@ function landingNuevaHTML(){
   return `<div class="rwrap nav">
     ${pillHeader('cualquier fecha','search')}
     <div class="rscroll">
-      <div class="hsec"><div class="hsec-head"><h3>Vuelos baratos a Paris</h3>${moreCircle}</div>${voosRow(0)}</div>
+      <div class="hsec"><div class="hsec-head"><h3>Vuelos baratos a ${escapeHtml(selectedDest.city)}</h3>${moreCircle}</div>${voosRow(0)}</div>
       <div class="hsec"><div class="hsec-head"><h3>Vuelos directos baratos</h3>${moreCircle}</div>${voosRow(1)}</div>
       ${monthChartHTML()}
       <div class="hsec"><div class="hsec-head"><h3>Vuelos con valijas</h3>${moreCircle}</div>${voosRow(2)}</div>
@@ -800,9 +831,10 @@ function landingNuevaHTML(){
 function multiproductHTML(){
   const hotelLines = `<div class="fo-from">Desde</div><div class="fo-price">$ 169.000</div><div class="fo-sub">1 noche, 2 personas</div>`;
   const paqLines   = `<div class="fo-from">Desde</div><div class="fo-price">U$ 1200</div><div class="fo-sub">4 noites, 2 pers.</div>`;
-  const hotelNames = ['Hotel Sheraton Business','Pestana Rio Atlântica','Belmond Copacabana'];
-  const hotelRow = `<div class="hcar">${[0,1,2].map(k=>focard(phHotel(k),'Hospedagens','Paris',hotelNames[k],hotelLines)).join('')}</div>`;
-  const paqRow = `<div class="hcar">${[0,1,2].map(k=>focard(ph(k+2),'Pacotes','De Buenos Aires','Paris',paqLines)).join('')}</div>`;
+  const C = escapeHtml(selectedDest.city);
+  const hotelNames = ['Hotel Sheraton Business','Pestana Atlântica','Belmond Palace'];
+  const hotelRow = `<div class="hcar">${[0,1,2].map(k=>focard(phHotel(k),'Hospedagens',C,hotelNames[k],hotelLines)).join('')}</div>`;
+  const paqRow = `<div class="hcar">${[0,1,2].map(k=>focard(ph(k+2),'Pacotes','De Buenos Aires',C,paqLines)).join('')}</div>`;
   return `<div class="rwrap nav">
     ${pillHeader('cualquier fecha','search')}
     <div class="rscroll">
@@ -811,16 +843,16 @@ function multiproductHTML(){
         <div class="stat"><div class="st-kick">Mejor mes para viajar</div><div class="st-val">Sept - Oct</div></div>
         <div class="stat"><div class="st-kick">Mes más barato</div><div class="st-val">Noviembre</div></div>
       </div>
-      <div class="hsec"><div class="hsec-head"><h3>Com base na sua busca por Paris</h3>${moreCircle}</div>
+      <div class="hsec"><div class="hsec-head"><h3>Com base na sua busca por ${C}</h3>${moreCircle}</div>
         <div class="hcar">
-          ${focard(phHotel(0),'Hospedagens','Paris','Hotel Sheraton Business Centro',hotelLines)}
-          ${focard(ph(0),'Voos','De Buenos Aires','Paris',VOOS_LINES)}
-          ${focard(ph(1),'Pacotes','De Buenos Aires','Paris',paqLines)}
+          ${focard(phHotel(0),'Hospedagens',C,'Hotel Sheraton Business Centro',hotelLines)}
+          ${focard(ph(0),'Voos','De Buenos Aires',C,VOOS_LINES)}
+          ${focard(ph(1),'Pacotes','De Buenos Aires',C,paqLines)}
         </div></div>
       ${sofiaRotCard()}
-      <div class="hsec"><div class="hsec-head"><h3>Vuelos baratos a Paris</h3>${moreCircle}</div>${voosRow(2)}</div>
-      <div class="hsec"><div class="hsec-head"><h3>Paquetes a Paris</h3>${moreCircle}</div>${paqRow}</div>
-      <div class="hsec"><div class="hsec-head"><h3>Hospedagens em Paris</h3>${moreCircle}</div>${hotelRow}</div>
+      <div class="hsec"><div class="hsec-head"><h3>Vuelos baratos a ${C}</h3>${moreCircle}</div>${voosRow(2)}</div>
+      <div class="hsec"><div class="hsec-head"><h3>Paquetes a ${C}</h3>${moreCircle}</div>${paqRow}</div>
+      <div class="hsec"><div class="hsec-head"><h3>Hospedagens em ${C}</h3>${moreCircle}</div>${hotelRow}</div>
       ${monthChartHTML()}
     </div>
     ${navHTML('inicio')}
